@@ -65,12 +65,12 @@ evaluator = ClusteringEvaluator()
 
 paramGrid = ParamGridBuilder().build()
 
-cross_validator = TrainValidationSplit() \
+train_validation_split = TrainValidationSplit() \
     .setEstimator(Pipeline(stages=[kmeans])) \
     .setEvaluator(evaluator) \
     .setEstimatorParamMaps(paramGrid)
 
-model = cross_validator.fit(train_df)
+model = train_validation_split.fit(train_df)
 # transformed = model.transform(val_df)
 # cross_validator.getEvaluator().evaluate(transformed)
 # transformed.show()
@@ -123,7 +123,7 @@ def write_to_cassandra(df: DataFrame, batch_id: int):
         .write\
         .format("org.apache.spark.sql.cassandra") \
         .mode('append') \
-        .options(table="combined_table", keyspace="customer_profiling") \
+        .options(table="predictions", keyspace="customer_profiling") \
         .save()
     df.unpersist()
 
