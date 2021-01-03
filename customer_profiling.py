@@ -49,18 +49,22 @@ static_data = spark.read \
     .load()
 static_data.show()
 
-new_df = invoices.join(transfers, on=['party_id'], how='inner').join(static_data, on=['party_id'], how='inner')
+new_df = invoices.withColumnRenamed('count', 'invoices_count')\
+                 .join(transfers.withColumnRenamed('count', 'transfers_count'), on=['party_id'], how='inner')\
+                 .join(static_data, on=['party_id'], how='inner')
 new_df.show()
 
+# drop string features
 train_df = new_df.drop('curr', 'currency_vec', 'transfer_curr', 'transfer_currency_vec', 'features')
 
-train_df = train_df.rdd.map(lambda row: (Vectors.dense(row),)).toDF(['features'])
-train_df.printSchema()
-# train_df = train_df.dropna(how='any')
-# train_df, val_df = train_df.randomSplit([0.8, 0.2])
+# train_df = train_df.rdd.map(lambda row: (Vectors.dense(row),)).toDF(['features'])
+# train_df.printSchema()
 
-kmeans = KMeans(k=3)  # 2 clusters here
-# model = kmeans.fit(train_df)
+assembler = VectorAssembler().setInputCols(train_df.columns).setOutputCol('features').setHandleInvalid('skip')
+train_vector = assembler.transform(train_df)
+
+kmeans = KMeans(k=2).setFeaturesCol('features')  # 2 clusters here
+# model = kmeans.fit(train_vector)
 evaluator = ClusteringEvaluator()
 
 paramGrid = ParamGridBuilder().build()
@@ -70,10 +74,10 @@ train_validation_split = TrainValidationSplit() \
     .setEvaluator(evaluator) \
     .setEstimatorParamMaps(paramGrid)
 
-model = train_validation_split.fit(train_df)
-# transformed = model.transform(val_df)
+model = train_validation_split.fit(train_vector)
+transformed = model.transform(train_vector)
 # cross_validator.getEvaluator().evaluate(transformed)
-# transformed.show()
+transformed.printSchema()
 
 # pred_count = transformed.groupBy('prediction').count().orderBy('count')
 
@@ -125,10 +129,14 @@ def write_to_cassandra(df: DataFrame, batch_id: int):
         .mode('append') \
         .options(table="predictions", keyspace="customer_profiling") \
         .save()
+    # df \
+    #     .selectExpr('CAST(features as STRING)') \
+    #     .show()
     df.unpersist()
 
 
 model.transform(vector) \
+    .select('features', 'prediction') \
     .writeStream \
     .trigger(processingTime='5 seconds') \
     .foreachBatch(write_to_cassandra) \
