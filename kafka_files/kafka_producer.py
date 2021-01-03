@@ -87,7 +87,7 @@ if __name__ == '__main__':
     for i in range(100):
         print(i)
         next(publisher)
-        sleep(1)
+        # sleep(1)
         print('wake up and repeat')
     # t = Thread(name=topic, target=publish, args=(publisher, topic))
     # thread.append(t)
