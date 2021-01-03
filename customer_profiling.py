@@ -10,6 +10,7 @@ from pyspark.sql.functions import split, udf
 from pyspark.sql.types import StringType, IntegerType, FloatType
 
 spark = SparkSession.builder.appName('CustomerProfiling').getOrCreate()
+spark.sparkContext.setLogLevel('INFO')
 
 # read messages from Kafka
 streaming_data = spark \
@@ -112,14 +113,13 @@ for i, val in enumerate(columns):
     streaming_data = streaming_data.withColumn(val.lower(), streaming_data[val].cast(get_type(val)))
 streaming_data = streaming_data.drop('value')
 
-assembler = VectorAssembler().setInputCols(streaming_data.columns).setOutputCol('features')
+assembler = VectorAssembler().setInputCols(streaming_data.columns).setOutputCol('features').setHandleInvalid('skip')
 vector = assembler.transform(streaming_data)
 
 
 def write_to_cassandra(df: DataFrame, batch_id: int):
     df.persist()
     df \
-        .selectExpr('CAST(features as STRING)')\
         .write\
         .format("org.apache.spark.sql.cassandra") \
         .mode('append') \
@@ -128,27 +128,9 @@ def write_to_cassandra(df: DataFrame, batch_id: int):
     df.unpersist()
 
 
-# model.transform(vector)\
-vector \
-    .select('features') \
+model.transform(vector) \
     .writeStream \
-    .trigger(processingTime='2 seconds') \
+    .trigger(processingTime='5 seconds') \
     .foreachBatch(write_to_cassandra) \
     .start() \
     .awaitTermination()
-
-# stream_transfers = spark \
-#     .readStream \
-#     .format("kafka") \
-#     .option("kafka.bootstrap.servers", "localhost:9092") \
-#     .option("subscribe", "transfers") \
-#     .option('startingOffsets', 'latest') \
-#     .load()
-#
-# stream_static_data = spark \
-#     .readStream \
-#     .format("kafka") \
-#     .option("kafka.bootstrap.servers", "localhost:9092") \
-#     .option("subscribe", "static-data") \
-#     .option('startingOffsets', 'latest') \
-#     .load()
