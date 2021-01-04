@@ -63,7 +63,7 @@ train_df = new_df.drop('curr', 'currency_vec', 'transfer_curr', 'transfer_curren
 assembler = VectorAssembler().setInputCols(train_df.columns).setOutputCol('features').setHandleInvalid('skip')
 train_vector = assembler.transform(train_df)
 
-kmeans = KMeans(k=2).setFeaturesCol('features')  # 2 clusters here
+kmeans = KMeans(k=4).setFeaturesCol('features')  # 4 clusters here
 # model = kmeans.fit(train_vector)
 evaluator = ClusteringEvaluator()
 
@@ -88,7 +88,7 @@ strip_dq = udf(lambda x: x.replace('[', '').replace('"', '').replace(']', ''), S
 
 
 def get_type(col):
-    int_cols = {'PARTY_ID', 'count', 'county', 'index', 'uniq_transfer_id_count', 'lob_code', 'package', 'region',
+    int_cols = {'party_id', 'count', 'county', 'index', 'uniq_transfer_id_count', 'lob_code', 'package', 'region',
                 'size'}
     string_cols = {'features', 'curr', 'currency_vec', 'transfer_cur', 'transfer_currency_vec'}
     if col in int_cols:
@@ -107,7 +107,7 @@ columns = ['id', 'PARTY_ID', 'curr', 'CURRENCY_VEC', 'sum(TAXINCLUSIVEAMOUNT)', 
            'max(AMOUNT)', 'county', 'UNIQ_TRANSFER_ID_COUNT', 'LOB_CODE', 'SIZE', 'PACKAGE', 'REGION', 'COUNTY']
 
 for i, val in enumerate(columns):
-    if get_type(val) is None or val == 'id':
+    if get_type(val.lower()) is None or val == 'id':
         continue
 
     if '(' in val:
