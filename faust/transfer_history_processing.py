@@ -31,11 +31,12 @@ static_data = pd.read_csv('data/static_data.csv')
 
 def get_creation_date(df: pd.DataFrame):
     df = df.dropna()
-    if df.CREATED_ON:
-        date = df.iloc[0]
-        print (date)
+    date = "2021-01-01 00:00:00.000"
+    if len(df["CREATED_ON"].values) > 0:
+        date = df["CREATED_ON"].values[0]
+        # print (date)
 
-    return 0
+    return date
 
 def lifeClassifier(create):
     if (datetime.strptime("1970-01-01 00:00:00.000", "%Y-%m-%d %H:%M:%S.%f") <= create < datetime.strptime("1986-06-01 00:00:00.000", "%Y-%m-%d %H:%M:%S.%f")):
@@ -86,8 +87,9 @@ async def rate_transfers(transfers: faust.Stream[Transfer]) -> None:
         amount_rate[transfer.PARTY_ID] = (transfers_amount_sum[transfer.PARTY_ID]/ transfers_count[transfer.PARTY_ID])
         # print("USER "+str(transfer.PARTY_ID)+"    has "+str(amount_rate[transfer.PARTY_ID]))
         # print("########################")
-        create = get_creation_date(
-                static_data.loc[static_data['PARTY_ID'] == int(transfer.PARTY_ID)]['CREATED_ON'])
+        x = static_data.loc[static_data['PARTY_ID'] == int(transfer.PARTY_ID)]
+        # print(x)
+        create = get_creation_date(x)
         create = datetime.strptime(create, '%Y-%m-%d %H:%M:%S.%f')
         life[transfer.PARTY_ID] = lifeClassifier(create)
         rate_class[transfer.PARTY_ID]= rateClassifier(amount_rate[transfer.PARTY_ID])
@@ -95,7 +97,7 @@ async def rate_transfers(transfers: faust.Stream[Transfer]) -> None:
         # print(group)
         # print(groupClassifier(group))
         if transfers_count[transfer.PARTY_ID] != 0:
-            print('Transfer Amount Rate:', amount_rate[transfer.PARTY_ID])
+            print('Transfer Amount Rate per Customer:', amount_rate[transfer.PARTY_ID])
             profile = groupClassifier(group)
             output_message = {
                 "party_id": transfer.PARTY_ID,
