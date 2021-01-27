@@ -30,5 +30,5 @@ echo "Running transfer stream processing pipeline"
 faust -A transfer_history_processing worker -l info
 
 # start kafka-producer for transfers
-echo "Running kafka producer for transfers"
+echo "Running kafka producer for transfer"
 python kafka_producer.py transfers transfer_history.csv &
