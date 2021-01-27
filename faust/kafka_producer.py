@@ -43,7 +43,9 @@ def publish_to_topic(filename: str, producer: KafkaProducer, topic: str):
     else:
         print('bootstrap server not connected')
 
-
+def sendData(data,key,topic):
+    producer.send(topic, data, key)
+    
 if __name__ == '__main__':
     import sys
 
@@ -55,14 +57,42 @@ if __name__ == '__main__':
 
     new_topic = NewTopic(name=topic_name, num_partitions=1, replication_factor=1)
     topic = create_topic(kafka_client, topics=[new_topic])
+    if topic_name == 'transfers':
+        value_struct = {"schema":
+               {"type":"struct",
+                "fields":[{"type":"int64","optional":False,"field":"id"},
+                          {"type":"string","optional":True,"field":"TRANSFER_ID"},
+                          {"type":"string","optional":True,"field":"PARTY_ID"},
+                          {"type":"string","optional":True,"field":"CURRENCY"},
+                          {"type":"string","optional":True,"field":"AMOUNT"},
+                          {"type":"string","optional":True,"field":"VALUE_DATE"},
+                          {"type":"string","optional":True,"field":"CREATED_ON"}],
+                "optional":False,
+                "name":"transfers"},
+               "payload":{}}
+        
+        tr = open (sys.argv[2], 'r')
+        fieldnames = ["id", "TRANSFER_ID", "PARTY_ID", "CURRENCY", "AMOUNT", "VALUE_DATE"]
+        reader = csv.DictReader(tr,fieldnames)
+        next(reader) 
+        i = 0
+        for row in reader:  
+            # print(i)  
+            value_struct["payload"] = json.loads(json.dumps(row))
+            print(value_struct['payload'])
+            sendData(value_struct["payload"],row['id'],topic_name)
+            sleep(0.002)
+            i+=1
+        producer.close()
 
-    publisher = publish_to_topic(file_path, producer, topic)
-    print(topic)
-    # for i in range(1000):
-    # print(i)
-    while True:
-        next(publisher)
-        sleep(0.002)
-    # print('wake up and repeat')
+    else:
+        publisher = publish_to_topic(file_path, producer, topic)
+        print(topic)
+        # for i in range(1000):
+        # print(i)
+        while True:
+            next(publisher)
+            sleep(0.002)
+        # print('wake up and repeat')
 
-    producer.close()
+        producer.close()
